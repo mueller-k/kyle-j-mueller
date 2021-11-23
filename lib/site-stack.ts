@@ -12,7 +12,10 @@ export class SiteStack extends cdk.Stack {
     super(scope, id, props);
 
     const bucket = new Bucket(this, "static-site-bucket", {
+      autoDeleteObjects: true,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+      publicReadAccess: false,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     new BucketDeployment(this, "static-site-bucket-deployment", {
