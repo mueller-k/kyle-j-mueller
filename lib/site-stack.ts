@@ -5,7 +5,7 @@ import { S3Origin } from "@aws-cdk/aws-cloudfront-origins";
 import { ARecord, PublicHostedZone, RecordTarget } from "@aws-cdk/aws-route53";
 import { CloudFrontTarget } from "@aws-cdk/aws-route53-targets";
 
-export class ResumeStack extends cdk.Stack {
+export class SiteStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
