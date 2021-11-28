@@ -36,6 +36,7 @@ export class SiteStack extends cdk.Stack {
     const certificate = new DnsValidatedCertificate(this, "certificate", {
       domainName: "www.kylejmueller.com",
       hostedZone: hostedZone,
+      subjectAlternativeNames: ["kylejmueller.com"],
     });
 
     const distribution = new Distribution(this, "dist", {
