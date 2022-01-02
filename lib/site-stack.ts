@@ -1,64 +1,70 @@
-import * as cdk from "@aws-cdk/core";
-import { DnsValidatedCertificate } from "@aws-cdk/aws-certificatemanager";
+import { Construct } from "constructs";
+import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import {
-  AllowedMethods,
-  Distribution,
-  ViewerProtocolPolicy,
-} from "@aws-cdk/aws-cloudfront";
-import { S3Origin } from "@aws-cdk/aws-cloudfront-origins";
-import { ARecord, PublicHostedZone, RecordTarget } from "@aws-cdk/aws-route53";
-import { CloudFrontTarget } from "@aws-cdk/aws-route53-targets";
-import { BlockPublicAccess, Bucket } from "@aws-cdk/aws-s3";
-import { BucketDeployment, Source } from "@aws-cdk/aws-s3-deployment";
+  aws_certificatemanager as acm,
+  aws_cloudfront as cf,
+  aws_cloudfront_origins as cfo,
+  aws_dynamodb as ddb,
+  aws_route53 as r53,
+  aws_route53_targets as r53t,
+  aws_s3 as s3,
+  aws_s3_deployment as s3d,
+} from "aws-cdk-lib";
 import * as path from "path";
 
-export class SiteStack extends cdk.Stack {
-  constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
+export class SiteStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const bucket = new Bucket(this, "static-site-bucket", {
+    const bucket = new s3.Bucket(this, "static-site-bucket", {
       autoDeleteObjects: true,
-      // blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
-      // publicReadAccess: false,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: RemovalPolicy.DESTROY,
     });
 
-    new BucketDeployment(this, "static-site-bucket-deployment", {
-      sources: [Source.asset(path.resolve(__dirname, "./../src/"))],
+    new s3d.BucketDeployment(this, "static-site-bucket-deployment", {
+      sources: [s3d.Source.asset(path.resolve(__dirname, "./../src/"))],
       destinationBucket: bucket,
       retainOnDelete: false,
     });
 
-    const hostedZone = new PublicHostedZone(this, "hosted-zone", {
+    const hostedZone = new r53.PublicHostedZone(this, "hosted-zone", {
       zoneName: "kylejmueller.com",
     });
 
-    const certificate = new DnsValidatedCertificate(this, "certificate", {
+    const certificate = new acm.DnsValidatedCertificate(this, "certificate", {
       domainName: "www.kylejmueller.com",
       hostedZone: hostedZone,
       subjectAlternativeNames: ["kylejmueller.com"],
     });
 
-    const distribution = new Distribution(this, "dist", {
+    const distribution = new cf.Distribution(this, "dist", {
       certificate: certificate,
       defaultBehavior: {
-        allowedMethods: AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-        origin: new S3Origin(bucket),
-        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cf.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
+        origin: new cfo.S3Origin(bucket),
+        viewerProtocolPolicy: cf.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
       defaultRootObject: "index.html",
       domainNames: ["www.kylejmueller.com"],
     });
 
-    new ARecord(this, "a-record-root", {
-      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
+    new r53.ARecord(this, "a-record-root", {
+      target: r53.RecordTarget.fromAlias(
+        new r53t.CloudFrontTarget(distribution)
+      ),
       zone: hostedZone,
     });
 
-    new ARecord(this, "a-record-www", {
+    new r53.ARecord(this, "a-record-www", {
       recordName: "www.kylejmueller.com",
-      target: RecordTarget.fromAlias(new CloudFrontTarget(distribution)),
+      target: r53.RecordTarget.fromAlias(
+        new r53t.CloudFrontTarget(distribution)
+      ),
       zone: hostedZone,
+    });
+
+    new ddb.Table(this, "Table", {
+      partitionKey: { name: "counter", type: ddb.AttributeType.NUMBER },
     });
   }
 }
